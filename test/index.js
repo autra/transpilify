@@ -62,6 +62,7 @@ test('simple transpiler using browserify transforms', function (t) {
 
 test('cli usage: check directory call', function (t) {
   var tmpDirName = 'tmp'
+  var assertDirName = 'test/fixtures/child-expected'
   childProcess.execFile(
     './cli.js',
     ['test/fixtures/child', '-d', tmpDirName, '-t', './test/uppercase.js'],
@@ -73,13 +74,16 @@ test('cli usage: check directory call', function (t) {
       }
 
       // assert stuff
-      vinylfs.src([tmpDirName + '/**/*'])
+      vinylfs.src([path.join(assertDirName, '/**/*')])
       .pipe(through2.obj(function (file, enc, next) {
+        if (fs.lstatSync(file.path).isDirectory()) {
+          return next(null)
+        }
         var actualFile = fs.readFileSync(file.path)
-        var expectedFileName = './test/fixtures/child-expected/' + file.stem + file.extname
+        var expectedFileName = file.path.replace(assertDirName, tmpDirName)
         var expectedFile = fs.readFileSync(expectedFileName)
         t.equal(actualFile.toString(), expectedFile.toString(), file.stem + file.extname)
-        next(null)
+        return next(null)
       }, function () {
         // clean test
         childProcess.exec('rm -r ' + tmpDirName, function (error, stdout, stderr) {
